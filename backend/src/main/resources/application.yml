@@ -1,0 +1,50 @@
+server:
+  port: ${SERVER_PORT:8080}
+  forward-headers-strategy: native
+
+spring:
+  application:
+    name: linen-laundry
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:linen_laundry}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: ${MYSQL_USER:admin}
+    password: ${MYSQL_PASSWORD:password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Shanghai
+  jackson:
+    time-zone: Asia/Shanghai
+    serialization:
+      write-dates-as-timestamps: false
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+
+logging:
+  level:
+    root: INFO
+
+# 本仓数据访问以 MyBatis 注解方式为主：Mapper 接口上写 @Select / @Insert / @Update / @Delete，
+# 关联映射用 @Results + @ResultMap + 嵌套 @Many / @One，动态条件用 @SelectProvider
+mybatis:
+  type-aliases-package: com.linen.laundry.domain
+  configuration:
+    map-underscore-to-camel-case: true
+    call-setters-on-nulls: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
