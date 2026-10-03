@@ -1,13 +1,17 @@
 package com.linen.laundry.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.linen.laundry.common.BizException;
 import com.linen.laundry.domain.OperationLog;
@@ -31,12 +35,14 @@ public class PickupOrderService {
     private final PickupOrderMapper orderMapper;
     private final OutletMapper outletMapper;
     private final OperationLogRepository logRepository;
+    private final DashboardService dashboardService;
 
     public PickupOrderService(PickupOrderMapper orderMapper, OutletMapper outletMapper,
-                              OperationLogRepository logRepository) {
+                              OperationLogRepository logRepository, DashboardService dashboardService) {
         this.orderMapper = orderMapper;
         this.outletMapper = outletMapper;
         this.logRepository = logRepository;
+        this.dashboardService = dashboardService;
     }
 
     public List<PickupOrder> list() {
@@ -108,6 +114,7 @@ public class PickupOrderService {
         outletMapper.reducePending(outlet.getId(), dirty);
         log("ORDER", order.getId(), "登记收送", outlet.getName() + " 脏 " + dirty + " / 净 " + clean
                 + (shortage > 0 ? "，短少 " + shortage + " 件赔付 " + compensation : ""));
+        evictOverviewAfterCommit();
         return get(order.getId());
     }
 
@@ -150,15 +157,35 @@ public class PickupOrderService {
         }
         orderMapper.updateDeliver(order);
         log("ORDER", id, "送净登记", "净 " + clean + "，短少 " + shortage);
+        evictOverviewAfterCommit();
         return get(id);
     }
 
-    public List<DispatchRow> dispatchBoard() {
-        return orderMapper.dispatchBoard();
+    /**
+     * 指定自然日的配送看板（不传 = 当天）。
+     */
+    public List<DispatchRow> dispatchBoard(LocalDate day) {
+        return orderMapper.dispatchBoard(day == null ? LocalDate.now() : day);
     }
 
-    public Map<String, Object> todaySummary() {
-        return orderMapper.todaySummary();
+    /**
+     * 指定自然日的收送汇总（不传 = 当天）。台账顶部与首页 KPI 共用同一 SQL 口径：
+     * 收脏按收脏时间、送净 / 短少 / 赔付按送净时间。
+     */
+    public Map<String, Object> daySummary(LocalDate day) {
+        return orderMapper.daySummary(day == null ? LocalDate.now() : day);
+    }
+
+    /** 解析 yyyy-MM-dd 查询参数；为空取当天；格式非法直接给中文业务错误。 */
+    public static LocalDate parseDay(String day) {
+        if (day == null || day.isBlank()) {
+            return LocalDate.now();
+        }
+        try {
+            return LocalDate.parse(day.trim());
+        } catch (DateTimeParseException e) {
+            throw new BizException("日期格式应为 yyyy-MM-dd，收到：" + day);
+        }
     }
 
     @Transactional
@@ -167,6 +194,24 @@ public class PickupOrderService {
         orderMapper.deleteLines(id);
         orderMapper.delete(id);
         log("ORDER", id, "删除收送单", order.getOrderNo());
+        evictOverviewAfterCommit();
+    }
+
+    /**
+     * 写操作事务提交后再清首页 overview 缓存：保证刷新台账与首页时拿到同一批最新数据；
+     * 非事务上下文（理论上不会走到）直接清除。Redis 不可用时由 DashboardService 内部吞掉异常。
+     */
+    private void evictOverviewAfterCommit() {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    dashboardService.evictOverviewCache();
+                }
+            });
+        } else {
+            dashboardService.evictOverviewCache();
+        }
     }
 
     private String nextOrderNo() {

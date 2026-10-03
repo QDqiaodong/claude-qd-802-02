@@ -52,6 +52,7 @@
 
 ## 业务规则（service 层抛 BizException）
 
+- 收送统计统一口径（台账顶部、首页 KPI、配送看板共用同一 SQL）：**脏件数 / 收脏单量按收脏时间 `pickup_time` 归日，净件数 / 短少 / 赔付 / 送净单量按送净时间 `deliver_time` 归日**。跨日送净单不把净件、短少、赔付带进收脏当天；未送净单只进收脏口径；当日收当日送两边各计一次、看板单量只算一单；无司机 / 车牌归入“未登记司机 / 未登记车牌”分组。`today-summary` 与 `dispatch-board` 均支持 `date=yyyy-MM-dd` 查看任意自然日；首页 overview 的 Redis 缓存在登记 / 送净 / 删除事务提交后失效，刷新台账与首页数值一致
 - 净件数不得大于脏件数；短少必须登记赔付金额
 - 批次推进工序必须按顺序，不能跳步；最后一道折叠完成后批次收口并回补在库
 - 设备故障状态不允许排产；批次重量不得超过设备容量，且不得超过配方版本最大装载比例；设备类型必须在配方版本可承接类型内
@@ -71,7 +72,7 @@
 - `GET /api/dashboard/overview`、`GET /api/dashboard/logs`
 - `GET /api/outlets`、`GET /api/outlets/{id}`、`POST /api/outlets/{id}/pickup`、`GET /api/outlets/{id}/orders`
 - `GET /api/categories`、`GET /api/categories/shortage`、`PUT /api/categories/{id}/stock?delta=10`、`POST /api/categories/count`
-- `GET /api/orders`、`POST /api/orders`、`POST /api/orders/{id}/deliver`、`GET /api/orders/dispatch-board`
+- `GET /api/orders`、`POST /api/orders`、`POST /api/orders/{id}/deliver`、`GET /api/orders/today-summary?date=yyyy-MM-dd`、`GET /api/orders/dispatch-board?date=yyyy-MM-dd`
 - `GET /api/batches`、`GET /api/batches/steps`、`GET /api/batches/step-stats`、`POST /api/batches`、`POST /api/batches/{id}/advance`、`POST /api/batches/reviews/{reviewId}/resolve`（偏差复核：放行 / 退回重做）
 - 洗涤配方版本台（`/api/recipes`）：`GET /recipes?categoryId=`、`GET /recipes/current?categoryId=`、`GET /recipes/{id}`、`POST /recipes/drafts`、`PUT /recipes/drafts/{id}`、`DELETE /recipes/drafts/{id}`、`POST /recipes/{id}/copy`、`POST /recipes/{id}/publish`、`POST /recipes/{id}/disable`
 - `GET /api/machines`、`POST /api/machines/{id}/next-status`、`POST /api/machines/{id}/repairs`、`POST /api/machines/repairs/{id}/finish`

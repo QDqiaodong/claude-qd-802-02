@@ -305,7 +305,11 @@ INSERT INTO pickup_order (order_no, outlet_id, pickup_time, deliver_time, dirty_
   (CONCAT('RS', DATE_FORMAT(CURDATE(), '%Y%m%d'), '-009'), 6, TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 1 DAY), '15:30:00'), TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 1 DAY), '20:10:00'), 268, 268, '马海涛', '浙A7K521', 0, 0.00, 'CLOSED', '机场酒店，现结已开票'),
   (CONCAT('RS', DATE_FORMAT(CURDATE(), '%Y%m%d'), '-010'), 9, TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 1 DAY), '16:20:00'), TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 1 DAY), '21:00:00'), 176, 176, '徐国庆', '浙A9M308', 0, 0.00, 'CLOSED', '社区中心，计件结算'),
   (CONCAT('RS', DATE_FORMAT(CURDATE(), '%Y%m%d'), '-011'), 11, TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 1 DAY), '17:10:00'), TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 1 DAY), '21:40:00'), 390, 386, '朱小明', '浙A2L617', 4, 96.00, 'CLOSED', '开元名都枕套短少 4 件'),
-  (CONCAT('RS', DATE_FORMAT(CURDATE(), '%Y%m%d'), '-012'), 12, TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 2 DAY), '09:20:00'), NULL, 240, 0, '范建华', '浙A5N902', 0, 0.00, 'PICKED', '康复中心首单，待洗涤');
+  (CONCAT('RS', DATE_FORMAT(CURDATE(), '%Y%m%d'), '-012'), 12, TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 2 DAY), '09:20:00'), NULL, 240, 0, '范建华', '浙A5N902', 0, 0.00, 'PICKED', '康复中心首单，待洗涤'),
+  -- 跨日送净：昨日收脏，今日才送净——脏件只算昨日，净件/短少/赔付只算今日
+  (CONCAT('RS', DATE_FORMAT(CURDATE(), '%Y%m%d'), '-013'), 1, TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 1 DAY), '18:30:00'), TIMESTAMP(CURDATE(), '08:30:00'), 150, 145, '马海涛', '浙A7K521', 5, 110.00, 'DELIVERED', '跨日单：昨晚收脏今早送净，床单短少 5 件'),
+  -- 送达但未登记司机 / 车牌：不参与任何司机绩效，也不能被统计丢弃
+  (CONCAT('RS', DATE_FORMAT(CURDATE(), '%Y%m%d'), '-014'), 6, TIMESTAMP(CURDATE(), '06:40:00'), TIMESTAMP(CURDATE(), '09:50:00'), 90, 90, NULL, NULL, 0, 0.00, 'DELIVERED', '临时司机代送，司机车牌后补');
 
 -- ---------- 种子数据：收送单明细（按品类拆分收发件数与短少赔付） ----------
 INSERT INTO pickup_order_line (order_id, category_id, dirty_qty, clean_qty, shortage_qty, loss_amount) VALUES

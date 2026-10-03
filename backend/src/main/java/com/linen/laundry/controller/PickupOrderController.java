@@ -46,15 +46,19 @@ public class PickupOrderController {
         return ApiResponse.success(orderService.search(outletId, status, driver, from, to, shortageOnly));
     }
 
+    /** 日汇总（口径：收脏按收脏时间，送净 / 短少 / 赔付按送净时间）；date 省略 = 今天 */
     @GetMapping("/today-summary")
-    public ApiResponse<Map<String, Object>> todaySummary() {
-        return ApiResponse.success(orderService.todaySummary());
+    public ApiResponse<Map<String, Object>> todaySummary(@RequestParam(required = false) String date) {
+        return ApiResponse.success(orderService.daySummary(PickupOrderService.parseDay(date)));
     }
 
-    /** 配送看板：按司机 / 车牌聚合 */
+    /**
+     * 配送看板：按司机 / 车牌聚合指定自然日收送量；date 省略 = 今天。
+     * 跨日单按收脏 / 送净时间分别落账，未登记司机车牌归入“未登记”分组。
+     */
     @GetMapping("/dispatch-board")
-    public ApiResponse<List<DispatchRow>> dispatchBoard() {
-        return ApiResponse.success(orderService.dispatchBoard());
+    public ApiResponse<List<DispatchRow>> dispatchBoard(@RequestParam(required = false) String date) {
+        return ApiResponse.success(orderService.dispatchBoard(PickupOrderService.parseDay(date)));
     }
 
     @GetMapping("/{id}")

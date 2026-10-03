@@ -51,8 +51,8 @@ export const categoryApi = {
 
 export const orderApi = {
   list: (params) => http.get('/orders', { params }),
-  todaySummary: () => http.get('/orders/today-summary'),
-  dispatchBoard: () => http.get('/orders/dispatch-board'),
+  todaySummary: (date) => http.get('/orders/today-summary', { params: date ? { date } : {} }),
+  dispatchBoard: (date) => http.get('/orders/dispatch-board', { params: date ? { date } : {} }),
   detail: (id) => http.get(`/orders/${id}`),
   create: (payload) => http.post('/orders', payload),
   deliver: (id, payload) => http.post(`/orders/${id}/deliver`, payload),
