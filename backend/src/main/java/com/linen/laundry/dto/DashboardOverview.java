@@ -30,6 +30,6 @@ public class DashboardOverview {
     private Integer faultMachineCount;
     /** 周转缺口品类数 */
     private Integer shortageCategoryCount;
-    /** 累计赔付金额 */
+    /** 今日短少赔付金额（按送净时间口径） */
     private BigDecimal compensationTotal;
 }

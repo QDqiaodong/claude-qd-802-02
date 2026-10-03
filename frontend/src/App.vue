@@ -41,7 +41,7 @@
         </div>
         <div class="ll-kpi">
           <div class="ll-kpi-value">¥{{ money(kpi.compensationTotal) }}</div>
-          <div class="ll-kpi-label">短少赔付（元）</div>
+          <div class="ll-kpi-label">今日短少赔付（元）</div>
         </div>
       </div>
     </header>

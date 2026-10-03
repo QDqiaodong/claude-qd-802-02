@@ -51,8 +51,9 @@ export const categoryApi = {
 
 export const orderApi = {
   list: (params) => http.get('/orders', { params }),
-  todaySummary: () => http.get('/orders/today-summary'),
-  dispatchBoard: () => http.get('/orders/dispatch-board'),
+  // 日汇总 / 配送看板统一口径：脏件按收脏日、净件/短少/赔付按送净日；可传 date=yyyy-MM-dd
+  todaySummary: (date) => http.get('/orders/today-summary', { params: date ? { date } : {} }),
+  dispatchBoard: (date) => http.get('/orders/dispatch-board', { params: date ? { date } : {} }),
   detail: (id) => http.get(`/orders/${id}`),
   create: (payload) => http.post('/orders', payload),
   deliver: (id, payload) => http.post(`/orders/${id}/deliver`, payload),

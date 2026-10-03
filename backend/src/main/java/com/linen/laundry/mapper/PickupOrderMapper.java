@@ -124,32 +124,61 @@ public interface PickupOrderMapper {
     @Select("SELECT IFNULL(MAX(id), 0) FROM pickup_order")
     int maxId();
 
-    /** 收送单统计：今日收脏 / 送净 / 短少 / 赔付 */
+    /**
+     * 收送单日汇总（口径统一，可按任意日期独立验证）：
+     * 脏件 / 收脏单量按【收脏时间 pickup_time】归属日期；
+     * 净件 / 短少 / 赔付 / 送净单量按【送净时间 deliver_time】归属日期。
+     * 跨日单两侧分别归属各自日期、不重复计数；未送净单（deliver_time 为空）
+     * 只计入收脏侧，短少赔付要到送净登记后才发生，因此不进送净侧。
+     */
     @Select("""
-            SELECT COUNT(*)                                        AS order_count,
-                   IFNULL(SUM(dirty_qty), 0)                       AS dirty_total,
-                   IFNULL(SUM(clean_qty), 0)                       AS clean_total,
-                   IFNULL(SUM(shortage_qty), 0)                    AS shortage_total,
-                   IFNULL(SUM(compensation), 0)                    AS compensation_total
+            SELECT COUNT(CASE WHEN DATE(pickup_time) = #{date} THEN 1 END)  AS pickup_order_count,
+                   COUNT(CASE WHEN DATE(deliver_time) = #{date} THEN 1 END) AS deliver_order_count,
+                   IFNULL(SUM(CASE WHEN DATE(pickup_time) = #{date}
+                                   THEN dirty_qty END), 0)                  AS dirty_total,
+                   IFNULL(SUM(CASE WHEN DATE(deliver_time) = #{date}
+                                   THEN clean_qty END), 0)                  AS clean_total,
+                   IFNULL(SUM(CASE WHEN DATE(deliver_time) = #{date}
+                                   THEN shortage_qty END), 0)               AS shortage_total,
+                   IFNULL(SUM(CASE WHEN DATE(deliver_time) = #{date}
+                                   THEN compensation END), 0)               AS compensation_total
               FROM pickup_order
-             WHERE DATE(pickup_time) = CURDATE() OR DATE(deliver_time) = CURDATE()
+             WHERE DATE(pickup_time) = #{date} OR DATE(deliver_time) = #{date}
             """)
-    Map<String, Object> todaySummary();
+    Map<String, Object> dailySummary(@Param("date") String date);
 
-    /** 配送看板：按司机 + 车牌聚合 */
+    /**
+     * 配送看板：按日期 + 司机 + 车牌聚合，口径与日汇总一致——
+     * 脏件按收脏日、净件 / 短少 / 赔付按送净日，条件聚合而非前端截断历史。
+     * 无司机或无车牌的单不丢弃：司机归并为「未指派司机」、车牌归并为「无车牌」，
+     * 避免无主单从司机绩效中消失。
+     */
     @Select("""
-            SELECT driver, plate,
-                   COUNT(*)                        AS order_count,
-                   IFNULL(SUM(dirty_qty), 0)       AS dirty_qty,
-                   IFNULL(SUM(clean_qty), 0)       AS clean_qty,
-                   IFNULL(SUM(shortage_qty), 0)    AS shortage_qty,
-                   IFNULL(SUM(compensation), 0)    AS compensation,
+            SELECT t.driver, t.plate,
+                   COUNT(*)                                                          AS order_count,
+                   SUM(t.pickup_flag)                                                AS pickup_order_count,
+                   SUM(t.deliver_flag)                                               AS deliver_order_count,
+                   IFNULL(SUM(t.dirty_qty), 0)                                       AS dirty_qty,
+                   IFNULL(SUM(t.clean_qty), 0)                                       AS clean_qty,
+                   IFNULL(SUM(t.shortage_qty), 0)                                    AS shortage_qty,
+                   IFNULL(SUM(t.compensation), 0)                                    AS compensation,
                    GROUP_CONCAT(DISTINCT o.district ORDER BY o.district SEPARATOR '、') AS districts
-              FROM pickup_order p
-              LEFT JOIN outlet o ON o.id = p.outlet_id
-             WHERE driver IS NOT NULL AND driver <> ''
-             GROUP BY driver, plate
-             ORDER BY dirty_qty DESC
+              FROM (
+                    SELECT outlet_id,
+                           CASE WHEN driver IS NULL OR driver = '' THEN '未指派司机' ELSE driver END AS driver,
+                           CASE WHEN plate IS NULL OR plate = '' THEN '无车牌' ELSE plate END        AS plate,
+                           CASE WHEN DATE(pickup_time) = #{date} THEN 1 ELSE 0 END  AS pickup_flag,
+                           CASE WHEN DATE(deliver_time) = #{date} THEN 1 ELSE 0 END AS deliver_flag,
+                           CASE WHEN DATE(pickup_time) = #{date} THEN dirty_qty END AS dirty_qty,
+                           CASE WHEN DATE(deliver_time) = #{date} THEN clean_qty END AS clean_qty,
+                           CASE WHEN DATE(deliver_time) = #{date} THEN shortage_qty END AS shortage_qty,
+                           CASE WHEN DATE(deliver_time) = #{date} THEN compensation END AS compensation
+                      FROM pickup_order
+                     WHERE DATE(pickup_time) = #{date} OR DATE(deliver_time) = #{date}
+                   ) t
+              LEFT JOIN outlet o ON o.id = t.outlet_id
+             GROUP BY t.driver, t.plate
+             ORDER BY dirty_qty DESC, clean_qty DESC, t.driver, t.plate
             """)
-    List<DispatchRow> dispatchBoard();
+    List<DispatchRow> dispatchBoard(@Param("date") String date);
 }

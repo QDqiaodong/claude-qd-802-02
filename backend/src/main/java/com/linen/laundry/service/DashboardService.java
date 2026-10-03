@@ -2,6 +2,7 @@ package com.linen.laundry.service;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.Map;
 
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -62,9 +63,23 @@ public class DashboardService {
         return overview;
     }
 
+    /**
+     * 收送单写操作（登记 / 送净 / 删除）后调用：立即失效首页 KPI 缓存，
+     * 保证刷新台账与首页看到的「今日」数值一致，而不是等 30 秒自然过期。
+     */
+    public void evictOverview() {
+        try {
+            redisTemplate.delete(CACHE_KEY);
+        } catch (Exception ignored) {
+            // Redis 不可用时本就直查数据库，无需处理
+        }
+    }
+
     private DashboardOverview build() {
         Map<String, Object> outlet = outletMapper.summary();
-        Map<String, Object> order = orderMapper.todaySummary();
+        // 与台账顶部「今日汇总」、配送看板走同一套日汇总口径（脏件按收脏日、
+        // 净件 / 短少 / 赔付按送净日），三处数值可交叉核对
+        Map<String, Object> order = orderMapper.dailySummary(LocalDate.now().toString());
         Map<String, Object> batch = batchMapper.summary();
         Map<String, Object> machine = machineMapper.summary();
 

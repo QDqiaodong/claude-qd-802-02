@@ -305,7 +305,13 @@ INSERT INTO pickup_order (order_no, outlet_id, pickup_time, deliver_time, dirty_
   (CONCAT('RS', DATE_FORMAT(CURDATE(), '%Y%m%d'), '-009'), 6, TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 1 DAY), '15:30:00'), TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 1 DAY), '20:10:00'), 268, 268, '马海涛', '浙A7K521', 0, 0.00, 'CLOSED', '机场酒店，现结已开票'),
   (CONCAT('RS', DATE_FORMAT(CURDATE(), '%Y%m%d'), '-010'), 9, TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 1 DAY), '16:20:00'), TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 1 DAY), '21:00:00'), 176, 176, '徐国庆', '浙A9M308', 0, 0.00, 'CLOSED', '社区中心，计件结算'),
   (CONCAT('RS', DATE_FORMAT(CURDATE(), '%Y%m%d'), '-011'), 11, TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 1 DAY), '17:10:00'), TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 1 DAY), '21:40:00'), 390, 386, '朱小明', '浙A2L617', 4, 96.00, 'CLOSED', '开元名都枕套短少 4 件'),
-  (CONCAT('RS', DATE_FORMAT(CURDATE(), '%Y%m%d'), '-012'), 12, TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 2 DAY), '09:20:00'), NULL, 240, 0, '范建华', '浙A5N902', 0, 0.00, 'PICKED', '康复中心首单，待洗涤');
+  (CONCAT('RS', DATE_FORMAT(CURDATE(), '%Y%m%d'), '-012'), 12, TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 2 DAY), '09:20:00'), NULL, 240, 0, '范建华', '浙A5N902', 0, 0.00, 'PICKED', '康复中心首单，待洗涤'),
+  -- 跨日单：昨晚收脏（脏件归昨日）、今早送净（净件/短少/赔付归今日），不得在今日汇总里重复计脏件
+  (CONCAT('RS', DATE_FORMAT(CURDATE(), '%Y%m%d'), '-013'), 2, TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 1 DAY), '22:30:00'), TIMESTAMP(CURDATE(), '07:05:00'), 460, 455, '马海涛', '浙A7K521', 5, 110.00, 'DELIVERED', '跨夜收送：昨晚收脏、今晨送净，枕套短少 5 件'),
+  -- 当日收当日送（无短少）：收脏与送净同属今日，只计一单
+  (CONCAT('RS', DATE_FORMAT(CURDATE(), '%Y%m%d'), '-014'), 3, TIMESTAMP(CURDATE(), '06:30:00'), TIMESTAMP(CURDATE(), '09:15:00'), 200, 200, NULL, NULL, 0, 0.00, 'DELIVERED', '临时加急单，尚未指派司机与车牌'),
+  -- 跨日单：前晚收脏、昨日送净，今日三项汇总均不应包含
+  (CONCAT('RS', DATE_FORMAT(CURDATE(), '%Y%m%d'), '-015'), 5, TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 2 DAY), '21:00:00'), TIMESTAMP(DATE_SUB(CURDATE(), INTERVAL 1 DAY), '08:30:00'), 150, 150, NULL, '浙A8T666', 0, 0.00, 'DELIVERED', '代驾送回：有车牌未登记司机');
 
 -- ---------- 种子数据：收送单明细（按品类拆分收发件数与短少赔付） ----------
 INSERT INTO pickup_order_line (order_id, category_id, dirty_qty, clean_qty, shortage_qty, loss_amount) VALUES

@@ -1,8 +1,10 @@
 package com.linen.laundry.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 
@@ -31,12 +33,15 @@ public class PickupOrderService {
     private final PickupOrderMapper orderMapper;
     private final OutletMapper outletMapper;
     private final OperationLogRepository logRepository;
+    private final DashboardService dashboardService;
 
     public PickupOrderService(PickupOrderMapper orderMapper, OutletMapper outletMapper,
-                              OperationLogRepository logRepository) {
+                              OperationLogRepository logRepository,
+                              DashboardService dashboardService) {
         this.orderMapper = orderMapper;
         this.outletMapper = outletMapper;
         this.logRepository = logRepository;
+        this.dashboardService = dashboardService;
     }
 
     public List<PickupOrder> list() {
@@ -106,6 +111,7 @@ public class PickupOrderService {
         orderMapper.insert(order);
 
         outletMapper.reducePending(outlet.getId(), dirty);
+        dashboardService.evictOverview();
         log("ORDER", order.getId(), "登记收送", outlet.getName() + " 脏 " + dirty + " / 净 " + clean
                 + (shortage > 0 ? "，短少 " + shortage + " 件赔付 " + compensation : ""));
         return get(order.getId());
@@ -149,16 +155,21 @@ public class PickupOrderService {
             order.setRemark(request.getRemark());
         }
         orderMapper.updateDeliver(order);
+        dashboardService.evictOverview();
         log("ORDER", id, "送净登记", "净 " + clean + "，短少 " + shortage);
         return get(id);
     }
 
-    public List<DispatchRow> dispatchBoard() {
-        return orderMapper.dispatchBoard();
+    /** 配送看板：指定日期（默认今天），口径同日汇总 */
+    public List<DispatchRow> dispatchBoard(String date) {
+        return orderMapper.dispatchBoard(normalizeDate(date));
     }
 
-    public Map<String, Object> todaySummary() {
-        return orderMapper.todaySummary();
+    /**
+     * 台账顶部日汇总：脏件按收脏时间、净件 / 短少 / 赔付按送净时间归属指定日期（默认今天）。
+     */
+    public Map<String, Object> todaySummary(String date) {
+        return orderMapper.dailySummary(normalizeDate(date));
     }
 
     @Transactional
@@ -166,7 +177,21 @@ public class PickupOrderService {
         PickupOrder order = get(id);
         orderMapper.deleteLines(id);
         orderMapper.delete(id);
+        dashboardService.evictOverview();
         log("ORDER", id, "删除收送单", order.getOrderNo());
+    }
+
+    /** 日期参数统一为 yyyy-MM-dd，空值默认今天，格式非法直接抛业务异常 */
+    private String normalizeDate(String date) {
+        if (date == null || date.isBlank()) {
+            return LocalDate.now().toString();
+        }
+        String value = date.trim();
+        try {
+            return LocalDate.parse(value).toString();
+        } catch (DateTimeParseException e) {
+            throw new BizException("日期格式有误，应为 yyyy-MM-dd：" + date);
+        }
     }
 
     private String nextOrderNo() {

@@ -11,7 +11,7 @@
         <el-input v-model="filters.driver" placeholder="司机" clearable style="width: 130px" @keyup.enter="load" />
         <el-checkbox v-model="filters.shortageOnly" @change="load">只看有短少</el-checkbox>
         <el-button type="primary" @click="load">刷新</el-button>
-        <span class="ll-sub">今日收脏 {{ today.dirty_total || 0 }} 件 · 送净 {{ today.clean_total || 0 }} 件 · 短少 {{ today.shortage_total || 0 }} 件 · 赔付 ¥{{ money(today.compensation_total) }}</span>
+        <span class="ll-sub">今日收脏 {{ today.dirty_total || 0 }} 件 · 送净 {{ today.clean_total || 0 }} 件 · 短少 {{ today.shortage_total || 0 }} 件 · 赔付 ¥{{ money(today.compensation_total) }}（收脏按收脏时间，送净 / 短少 / 赔付按送净时间；跨日单、未送净单不串日）</span>
       </div>
     </div>
 
